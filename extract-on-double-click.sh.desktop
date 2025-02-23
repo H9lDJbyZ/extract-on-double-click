@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Распаковать в ЭТУ папку
+Exec=/home/ВАШ_ПОЛЬЗОВАТЕЛЬ/.local/bin/extract-on-double-click.sh %F
+Type=Application
+Terminal=false
