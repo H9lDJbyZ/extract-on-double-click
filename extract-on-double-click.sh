@@ -4,7 +4,7 @@ FOLDER_NAME=$(basename "$ARCHIVE" | sed 's/\.[^.]*$//')
 LOG_FILE="$HOME/.extract_log"
 QUIET=0
 [ "$2" = "--quiet" ] && QUIET=1
-cd "$(dirname "$ARCHIVE")" || { echo "Ошибка: не удалось перейти в директорию" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось открыть директорию"; exit 1; }
+cd "$(dirname "$ARCHIVE")" || { echo "$(date): Ошибка: не удалось перейти в директорию $(dirname "$ARCHIVE")" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось открыть директорию"; exit 1; }
 
 if [ ! -f "$ARCHIVE" ]; then
     echo "$(date): Ошибка: файл $ARCHIVE не найден" >> "$LOG_FILE"
@@ -37,17 +37,25 @@ extract() {
 }
 
 if check_archive_content; then
-    extract "" || { echo "$(date): Ошибка распаковки $ARCHIVE" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось распаковать $ARCHIVE"; exit 1; }
-    FILES=$(ls -lh | tail -n +2 | awk '{print $9}')
-else
+    echo "$(date): Архив $ARCHIVE содержит папку $FOLDER_NAME, распаковка в текущую директорию" >> "$LOG_FILE"
     if [ -d "$FOLDER_NAME" ]; then
-        zenity --question --text="Папка $FOLDER_NAME уже существует. Перезаписать?" || exit 0
-        rm -rf "$FOLDER_NAME"
+        echo "$(date): Папка $FOLDER_NAME существует, вызываю zenity" >> "$LOG_FILE"
+        zenity --question --text="Папка $FOLDER_NAME уже существует в текущей директории. Перезаписать?" || { echo "$(date): Пользователь отказался от перезаписи" >> "$LOG_FILE"; exit 0; }
+        echo "$(date): Удаляю существующую папку $FOLDER_NAME" >> "$LOG_FILE"
+        rm -rf "$FOLDER_NAME" || { echo "$(date): Ошибка удаления папки $FOLDER_NAME" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось удалить папку"; exit 1; }
     fi
+    extract "" || { echo "$(date): Ошибка распаковки $ARCHIVE" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось распаковать $ARCHIVE"; exit 1; }
+else
+    echo "$(date): Проверка существования папки $FOLDER_NAME" >> "$LOG_FILE"
+    if [ -d "$FOLDER_NAME" ]; then
+        echo "$(date): Папка $FOLDER_NAME существует, вызываю zenity" >> "$LOG_FILE"
+        zenity --question --text="Папка $FOLDER_NAME уже существует. Перезаписать?" || { echo "$(date): Пользователь отказался от перезаписи" >> "$LOG_FILE"; exit 0; }
+        echo "$(date): Удаляю существующую папку $FOLDER_NAME" >> "$LOG_FILE"
+        rm -rf "$FOLDER_NAME" || { echo "$(date): Ошибка удаления папки $FOLDER_NAME" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось удалить папку"; exit 1; }
+    fi
+    echo "$(date): Создаю новую папку $FOLDER_NAME" >> "$LOG_FILE"
     mkdir "$FOLDER_NAME" || { echo "$(date): Ошибка создания папки $FOLDER_NAME" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось создать папку"; exit 1; }
     extract "-C $FOLDER_NAME" || extract "-d $FOLDER_NAME" || extract "-o$FOLDER_NAME" || { echo "$(date): Ошибка распаковки $ARCHIVE в $FOLDER_NAME" >> "$LOG_FILE"; [ $QUIET -eq 0 ] && notify-send "Ошибка" "Не удалось распаковать $ARCHIVE"; exit 1; }
-    cd "$FOLDER_NAME"
-    FILES=$(ls -lh | tail -n +2 | awk '{print $9}')
 fi
 
-[ $QUIET -eq 0 ] && notify-send "Распаковка завершена" "Содержимое $FOLDER_NAME:\n$FILES"
+[ $QUIET -eq 0 ] && notify-send "Распаковка завершена" "Архив $FOLDER_NAME успешно распакован
